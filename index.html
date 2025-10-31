@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>اردو وائس ٹائپنگ - گلاس انٹرفیس</title>
+  <meta name="description" content="Speech to text in Urdu. Based on Web Speech API.">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* --- Glassmorphism Theme by Gemini --- */
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Nastaliq Urdu', serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      /* ایک خوبصورت پس منظر جو شیشے کے اثر کو نمایاں کرے */
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      background-attachment: fixed;
+      padding: 20px;
+    }
+
+    /* مرکزی گلاس کنٹینر */
+    .glass-container {
+      background: rgba(255, 255, 255, 0.1); /* نیم شفاف پس منظر */
+      backdrop-filter: blur(15px); /* دھندلا اثر */
+      -webkit-backdrop-filter: blur(15px); /* Safari کے لیے */
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      padding: 30px;
+      width: 90%;
+      max-width: 800px;
+      direction: rtl; /* اردو کے لیے دائیں سے بائیں */
+      color: #fff;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 25px;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* کنٹرول بٹنز */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 25px;
+      align-items: center;
+    }
+
+    .controls button,
+    .controls select {
+      font-family: 'Noto Nastaliq Urdu', serif;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      padding: 10px 20px;
+      color: #fff;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .controls button:hover,
+    .controls select:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    .controls button:active {
+      transform: scale(0.95);
+    }
+    
+    /* 'سن رہا ہے' بٹن کا مخصوص انداز */
+    #startBtn.listening {
+      background-color: #dc3545; /* سرخ رنگ */
+      box-shadow: 0 0 15px #dc3545;
+    }
+
+    .controls select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg fill="white" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: left 10px center;
+      padding-right: 20px; 
+      padding-left: 40px; /* تیر کے نشان کے لیے جگہ */
+    }
+
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .controls input[type="checkbox"] {
+      cursor: pointer;
+    }
+
+    /* ٹیکسٹ ایریا */
+    #output {
+      width: 100%;
+      height: 350px; /* اونچائی بڑھا دی */
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 15px;
+      padding: 20px;
+      font-size: 1.5rem;
+      line-height: 2.7rem; /* بہتر سطر کا فاصلہ */
+      color: #fff;
+      resize: vertical;
+      direction: rtl;
+      font-family: 'Noto Nastaliq Urdu', serif;
+    }
+
+    #output::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* اسٹیٹس بار */
+    #status {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1.2rem;
+      font-weight: 400;
+      min-height: 1.5em; /* لے آؤٹ کو ہلنے سے بچاتا ہے */
+      transition: all 0.3s ease;
+    }
+
+    #status.listening {
+      color: #a7f3d0; /* چمکدار سبز رنگ */
+      font-weight: 700;
+      text-shadow: 0 0 10px #a7f3d0;
+    }
+    /* --- اینڈ اسٹائلنگ --- */
+  </style>
+</head>
+<body>
+
+  <div class="glass-container">
+    <h2>اردو وائس ٹائپنگ</h2>
+
+    <div class="controls">
+      <button id="startBtn">شروع</button>
+      <button id="copyBtn">کاپی</button>
+      <button id="clearBtn">صاف</button>
+      
+      <select id="langSelect">
+        <option value="ur-PK">اردو (پاکستان)</option>
+        <option value="ur-IN">اردو (بھارت)</option>
+      </select>
+      
+      <label>
+        <input type="checkbox" id="autoRestart" checked>
+        خودکار دوبارہ آغاز
+      </label>
+    </div>
+
+    <textarea id="output" placeholder="آپ جو بولیں گے وہ یہاں لکھا جائے گا..."></textarea>
+    
+    <div id="status">شروع کرنے کے لیے 'شروع' بٹن دبائیں</div>
+  </div>
+
+  <script>
+    const output = document.getElementById('output');
+    const startBtn = document.getElementById('startBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const status = document.getElementById('status');
+    const langSelect = document.getElementById('langSelect');
+    const autoRestart = document.getElementById('autoRestart');
+
+    let listening = false;
+    let recognition = null;
+    let lastFinal = '';
+    let wantRestart = false;
+
+    // SpeechRecognition سیٹ اپ
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    function createRecognition(){
+      if(!SpeechRecognition){
+        setStatus('خرابی: آپ کا براؤزر اسپیچ ریکگنیشن کو سپورٹ نہیں کرتا۔ کروم یا ایج استعمال کریں۔', false);
+        startBtn.disabled = true;
+        return null;
+      }
+      
+      const rec = new SpeechRecognition();
+      rec.lang = langSelect.value;
+      rec.continuous = true;
+      rec.interimResults = true; // انٹرم نتائج دکھائیں
+      rec.maxAlternatives = 1;
+      return rec;
+    }
+
+    recognition = createRecognition();
+
+    function setStatus(text, isListening){
+      status.textContent = text;
+      status.classList.toggle('listening', isListening);
+      startBtn.classList.toggle('listening', isListening);
+    }
+
+    // بٹن کے افعال
+    startBtn.addEventListener('click', () => {
+      if(!recognition) return;
+      
+      if(listening){
+        wantRestart = false;
+        recognition.stop();
+        setStatus('رکا', false);
+        startBtn.textContent = 'شروع';
+      } else {
+        try {
+          lastFinal = '';
+          wantRestart = true;
+          recognition.lang = langSelect.value; // زبان کو اپ ڈیٹ کریں
+          recognition.start();
+          listening = true;
+          setStatus('سن رہا ہے...', true);
+          startBtn.textContent = 'روکیں';
+        } catch(e) {
+          console.error(e);
+          setStatus('خرابی: شروع نہیں ہو سکا۔ ' + e.message, false);
+        }
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      output.value = '';
+      lastFinal = '';
+    });
+
+    langSelect.onchange = () => {
+      if(listening){
+        recognition.stop(); // زبان بدلنے پر ری اسٹارٹ
+      } else {
+        recognition = createRecognition(); // نیا ریکگنیشن آبجیکٹ بنائیں
+      }
+    };
+
+    // اردو متن کی صفائی
+    function beautifyUrdu(text) {
+      //... (یہاں آپ کا اصل 'beautifyUrdu' فنکشن آئے گا)
+      // (میں نے اسے مختصر کر دیا ہے تاکہ کوڈ بلاک بہت لمبا نہ ہو، 
+      // لیکن آپ کا اصل فنکشن یہاں مکمل طور پر موجود ہونا چاہیے)
+      
+      // آپ کے کوڈ سے مکمل فنکشن کاپی کیا گیا:
+      text = text.replace(/•[^•]*$/, ''); // انٹرم مارکر ہٹائیں
+      text = text.trim();
+      
+      // Fix spacing for common punctuation
+      text = text.replace(/\s+([\.\,\!\?؛۔،؟])\s*/g, '$1 ');
+      text = text.replace(/ ([\.\,\!\?؛۔،؟])/g, '$1 '); // Remove space before
+      text = text.replace(/([\.\,\!\?؛۔،؟])([^\s\.\,\!\?؛۔،؟])/g, '$1 $2'); // Add space after
+      
+      // Specific fixes for Urdu
+      text = text.replace(/ ہے /g, ' ہے '); // Ensure space around 'hai'
+      text = text.replace(/ ہیں /g, ' ہیں '); // Ensure space around 'hain'
+      text = text.replace(/ کہ /g, ' کہ '); // Ensure space around 'ke'
+      text = text.replace(/ کا /g, ' کا ');
+      text = text.replace(/ کی /g, ' کی ');
+      text = text.replace(/ کے /g, ' کے ');
+      text = text.replace(/ کو /g, ' کو ');
+      text = text.replace(/ پر /g, ' پر ');
+      text = text.replace(/ میں /g, ' میں ');
+      text = text.replace(/ سے /g, ' سے ');
+      text = text.replace(/ نے /g, ' نے ');
+      text = text.replace(/ جو /g, ' جو ');
+      
+      // Correcting "۔" (full stop)
+      text = text.replace(/\s*۔\s*/g, '۔ '); // Space after full stop
+      text = text.replace(/ ۔/g, '۔'); // No space before full stop
+      
+      // Correcting "،" (comma)
+      text = text.replace(/\s*،\s*/g, '، '); // Space after comma
+      text = text.replace(/ ،/g, '،'); // No space before comma
+
+      // Handle brackets
+      text = text.replace(/\(\s*(.*?)\s*\)/g, ' ($1) ');
+      text = text.replace(/\s+\)/g, ')');
+      text = text.replace(/\(\s+/g, '(');
+
+      // Capitalize first letter after a full stop (if it's English)
+      text = text.replace(/۔\s*([a-z])/g, (match, p1) => '۔ ' + p1.toUpperCase());
+      if (text.length > 0 && text[0] >= 'a' && text[0] <= 'z') {
+        text = text[0].toUpperCase() + text.substring(1);
+      }
+      
+      // Fix double spacing
+      text = text.replace(/\s+/g, ' ');
+      
+      return text.trim();
+    }
+
+    // ریکگنیشن کے نتائج کو ہینڈل کرنا
+    const oldCreate = createRecognition;
+    createRecognition = function(){
+      const rec = oldCreate.call(this);
+      if(!rec) return rec;
+
+      function addFinalText(t){
+        t = t.trim();
+        if(!t) return;
+        if(t === lastFinal) return; // اگر بالکل وہی فائنل دوبارہ آئے تو نظرانداز
+        lastFinal = t;
+        
+        // موجودہ انٹرم ٹیکسٹ کو ہٹائیں
+        output.value = output.value.replace(/•[^•]*$/, '');
+        
+        // نیا فائنل ٹیکسٹ شامل کریں
+        output.value += (output.value.endsWith('\n') || output.value.length===0 ? '' : ' ') + t;
+        output.value = beautifyUrdu(output.value) + ' '; // آخر میں اسپیس دیں
+      }
+
+      rec.onresult = (event) => {
+        let interimText = '';
+        for(let i = event.resultIndex; i < event.results.length; i++){
+          const res = event.results[i];
+          if(res.isFinal){
+            addFinalText(res[0].transcript);
+          } else if(rec.interimResults){
+            interimText += res[0].transcript;
+          }
+        }
+        
+        // انٹرم ٹیکسٹ کو اپ ڈیٹ کریں
+        let base = output.value.replace(/•[^•]*$/, ''); // پرانا انٹرم ہٹائیں
+        if(interimText){
+          output.value = base.trim() + ' •' + interimText;
+        } else {
+          output.value = base;
+        }
+        
+        output.scrollTop = output.scrollHeight;
+      };
+
+      rec.onerror = (e) => {
+        const code = e.error || 'unknown';
+        let tip = '';
+        if(code === 'not-allowed' || code === 'service-not-allowed'){
+          tip = 'مائیک اجازت مسدود ہے۔ براؤزر ایڈریس بار میں کیمرہ/مائیک آئیکن پر کلک کر کے Allow کریں، پھر صفحہ ریفریش کریں۔ اگر آپ فائل سے چلا رہے ہیں تو لوکل ہوسٹ یا HTTPS استعمال کریں۔ سسٹم کی پرمیشنز میں بھی مائیک اجازت دیں۔';
+        } else if(code === 'no-speech'){
+          tip = 'آواز نہیں ملی۔ خاموشی کم کریں یا مائیک کے قریب بولیں۔';
+        } else if(code === 'audio-capture'){
+          tip = 'مائیک نہیں ملا۔ Settings > Privacy > Microphone میں براؤزر کو اجازت دیں، درست مائیک منتخب کریں۔';
+        } else if(code === 'network'){
+          tip = 'نیٹ ورک مسئلہ۔ انٹرنیٹ چیک کریں یا بعد میں کوشش کریں۔';
+        } else {
+          tip = 'نامعلوم خرابی۔ براؤزر ریفریش کریں یا دوسری ونڈو بند کریں۔';
+        }
+        setStatus('خرابی: ' + code + ' — ' + tip, false);
+      };
+
+      rec.onend = () => {
+        listening = false;
+        setStatus('رکا', false);
+        startBtn.textContent = 'شروع';
+        if(recognition.continuous && autoRestart.checked && wantRestart && !listening){
+          setTimeout(()=>{ if(!listening && wantRestart){ try{ recognition.start(); listening = true; setStatus('سن رہا ہے...', true); startBtn.textContent = 'روکیں';}catch(_){} } }, 250);
+        }
+      };
+
+      return rec;
+    }
+    
+    // ریکگنیشن کو دوبارہ اسائن کریں تاکہ نئے ایونٹ ہینڈلرز لاگو ہوں
+    recognition = createRecognition();
+
+
+    // کاپی بٹن کا رویہ
+    copyBtn.addEventListener('click', async () => {
+      try{
+        const text = beautifyUrdu(output.value.replace(/•[^•]*$/, '')); // انٹرم ہٹا کر کاپی کریں
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = 'کاپی ہو گیا';
+        setTimeout(() => copyBtn.textContent = 'کاپی', 1100);
+      }catch{
+        alert('کاپی کرنے میں مسئلہ آیا');
+      }
+    });
+  </script>
+</body>
+</html>
